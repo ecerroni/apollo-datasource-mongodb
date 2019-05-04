@@ -17,7 +17,8 @@
     "apollo-datasource": "^0.3.1",
     "apollo-server-caching": "^0.3.1",
     "apollo-server-errors": "^2.2.1",
-    "dataloader": "^1.4.0"
+    "dataloader": "^1.4.0",
+    "sift": "^8.3.3"
   },
   "devDependencies": {
     "@babel/cli": "^7.4.3",

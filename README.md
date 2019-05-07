@@ -3,17 +3,23 @@
 Apollo [data source](https://www.apollographql.com/docs/apollo-server/features/data-sources) for MongoDB
 
 ```
-npm i apollo-datasource-mongodb
+npm i apollo-datasource-mongo
 ```
 
-This package uses [DataLoader](https://github.com/graphql/dataloader) for batching and per-request memoization caching. It also optionally (if you provide a `ttl`), does shared application-level caching (using either the default Apollo `InMemoryLRUCache` or the [cache you provide to ApolloServer()](https://www.apollographql.com/docs/apollo-server/features/data-sources#using-memcachedredis-as-a-cache-storage-backend)). It does this only for these two methods, which are added to your collections:
+OR
+
+```
+yarn add apollo-datasource-mongo
+```
+
+
+This package uses [DataLoader](https://github.com/graphql/dataloader) for batching and per-request memoization caching. It also optionally (if you provide a `ttl`), does shared application-level caching (using either the default Apollo `InMemoryLRUCache` or the [cache you provide to ApolloServer()](https://www.apollographql.com/docs/apollo-server/features/data-sources#using-memcachedredis-as-a-cache-storage-backend)). It does this only for these three methods, which are added to your collections:
 
 - [`findOneById(id, options)`](#findonebyid)
 - [`findManyByIds(ids, options)`](#findmanybyids)
+- [`findManyByQuery(queries, options)`](#findmanybyids)
 
 
-<!-- START doctoc generated TOC please keep comment here to allow auto update -->
-<!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 **Contents:**
 
 - [Usage](#usage)
@@ -23,10 +29,13 @@ This package uses [DataLoader](https://github.com/graphql/dataloader) for batchi
 - [API](#api)
   - [findOneById](#findonebyid)
   - [findManyByIds](#findmanybyids)
+  - [findManyByQuery](#findmanybyquery)
   - [deleteFromCacheById](#deletefromcachebyid)
+  - [flushCollectionCache](#flushcollectioncache)
 
-<!-- END doctoc generated TOC please keep comment here to allow auto update -->
-
+This package works with either one of the following npm packages:
+- mongodb: https://www.npmjs.com/package/mongodb
+- mongoose: https://www.npmjs.com/package/mongoose
 
 ## Usage
 
@@ -87,6 +96,9 @@ This is the main feature, and is always enabled. Here's a full example:
 
 ```js
 import { MongoClient } from 'mongodb'
+// OR [Using MONGOOSE]
+// import mongoose from 'mongoose';
+// import { users, posts } from './your-mongo-schema-folder'
 import { MongoDataSource } from 'apollo-datasource-mongodb'
 import { ApolloServer } from 'apollo-server'
 
@@ -96,14 +108,31 @@ let posts
 const client = new MongoClient('mongodb://localhost:27017')
 
 client.connect(e => {
-  users = client.db('users')
-  posts = client.db('posts')
+  users = client.db('dbname').collection('users')
+  posts = client.db('dbname').collection('posts')
 })
+
+// OR [Using MONGOOSE]
+// mongoose.pluralize(null); // legacy db has no plulars in collections' names
+
+// mongoose.connect('mongodb://localhost:27017/dbname');
+
+
+// const db = mongoose.connection;
+// db.on('error', e => console.error('MongoDB connection error.', e));
+// db.on('open', () => {
+//   console.log('Connected to db');
+// });
+
+
 
 class MyMongo extends MongoDataSource {
   constructor() {
     super()
     this.collections = [users, posts]
+    // this.mongoose = true // default is mongoClient
+    // this.debug = true // to enable debugging console.logs
+    // this.flushCollectionCache = true // to allow flushing collection's cache**
   }
 
   getUser(userId) {
@@ -113,14 +142,22 @@ class MyMongo extends MongoDataSource {
   getPosts(postIds) {
     return posts.findManyByIds(postIds)
   }
+
+  getUserPostsByQuery(query) {
+    return posts.findManyByQuery(query)
+  }
 }
 
 const resolvers = {
   Post: {
-    author: (post, _, { db }) => db.getUser(post.authorId)
+    author: (post, _, { dataSources: { db } }) => db.getUser(post.authorId)
   },
   User: {
-    posts: (user, _, { db }) => db.getPosts(user.postIds)
+    posts: (user, _, { dataSources: { db } }) => db.getPosts(user.postIds),
+    lastSevenDaysPosts: (user, _, { dataSources: { db } }) => db.getUsersPostsByQuery({
+      author: user._id,
+      createdAt: { $gt: (new Date()).getDate() - 7 }
+    })
   }
 }
 
@@ -132,6 +169,7 @@ const server = new ApolloServer({
   })
 })
 ```
+** *By default `flushCollectionCache` is not allowed as I implemented tracking of all cache keys without thinking about the performance implications. Actually I have no clue atm :) so I am making this optional for now.*
 
 You might prefer to structure it as one data source per collection, in which case you'd do:
 
@@ -160,10 +198,10 @@ class Posts extends MongoDataSource {
 
 const resolvers = {
   Post: {
-    author: (post, _, { users }) => users.getUser(post.authorId)
+    author: (post, _, { dataSources: { users } }) => users.getUser(post.authorId)
   },
   User: {
-    posts: (user, _, { posts }) => posts.getPosts(user.postIds)
+    posts: (user, _, { dataSources: { posts } }) => posts.getPosts(user.postIds)
   }
 }
 
@@ -198,6 +236,7 @@ class MyMongo extends MongoDataSource {
 
   updateUserName(userId, newName) {
     users.deleteFromCacheById(userId)
+    // users.flushCollectionCache() // to flush the whole collection's cache. It needs this.flushCollectionCache to be true
     return users.updateOne({ 
       _id: userId 
     }, {
@@ -208,7 +247,7 @@ class MyMongo extends MongoDataSource {
 
 const resolvers = {
   User: {
-    posts: (user, _, { db }) => db.getPosts(user.postIds)
+    posts: (user, _, { dataSources: { db } }) => db.getPosts(user.postIds)
   },
   Mutation: {
     changeName: (_, { userId, newName }, { db, currentUserId }) => 
@@ -233,8 +272,26 @@ Resolves to the found document. Uses DataLoader to load `id`. DataLoader uses `c
 
 Calls [`findOneById()`](#findonebyid) for each id. Resolves to an array of documents.
 
+### findManyByQuery
+
+`collection.findManyByQuery(query, { ttl })`
+
+Resolves to the found documents. Uses DataLoader to load the query. DataLoader uses sift to  filter in-memory arrays using MongoDB query objects. Optionally caches the document if `ttl` is set (in whole seconds).
+
 ### deleteFromCacheById
 
 `collection.deleteFromCacheById(id)`
 
+`collection.deleteFromCacheById(query)`
+
 Deletes a document from the cache.
+
+//
+
+### flushCollectionCache
+
+`collection.flushCollectionCache()`
+
+Deletes all collection's documents from the cache.
+
+//

@@ -17,7 +17,11 @@ class MongoDataSource extends DataSource {
 
     const cache = config.cache || new InMemoryLRUCache()
 
-    this.collections.forEach(collection => setupCaching({ collection, cache }))
+    const mongoose = this.mongoose
+
+    const debug = this.debug
+
+    this.collections.forEach(collection => setupCaching({ collection, cache, mongoose, debug }))
   }
 }
 

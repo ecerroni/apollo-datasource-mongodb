@@ -1,14 +1,25 @@
 {
-  "name": "apollo-datasource-mongodb",
+  "name": "apollo-datasource-mongo",
   "version": "0.0.2",
-  "description": "Apollo data source for MongoDB",
+  "description": "Apollo data source for MongoDB Client and Mongoose",
   "main": "dist/index.js",
+  "files": [
+    "/dist"
+  ],
   "scripts": {
     "build": "babel src -d dist --ignore **/*.test.js",
     "dev": "babel src -d dist --watch --ignore **/*.test.js",
-    "test": "jest --watch",
+    "test": "jest",
+    "test:clear-cache": "jest --clearCache",
+    "lint": "eslint .",
+    "clean": "rimraf dist",
+    "lint-fix": "eslint --fix .",
+    "prebuild": "npm run clean",
     "prepublishOnly": "npm run build",
-    "prettify": "prettier --write **/*.js"
+    "preversion": "npm run prettify && npm run lint && npm test && npm run build",
+    "prettify": "prettier --write **/*.js",
+    "version": "standard-changelog && git add CHANGELOG.md",
+    "postpublish": "git push apollo-datasource-mongodb master --follow-tags"
   },
   "engines": {
     "node": ">=8"
@@ -23,31 +34,48 @@
   "devDependencies": {
     "@babel/cli": "^7.4.3",
     "@babel/core": "^7.4.3",
+    "@babel/plugin-proposal-class-properties": "^7.1.0",
     "@babel/preset-env": "^7.4.3",
+    "babel-core": "^7.0.0-bridge.0",
+    "babel-eslint": "^10.0.1",
     "babel-jest": "^24.7.1",
+    "eslint": "^5.16.0",
+    "eslint-config-airbnb-base": "^13.1.0",
+    "eslint-config-prettier": "^3.1.0",
+    "eslint-plugin-import": "^2.14.0",
+    "eslint-plugin-prettier": "^3.0.0",
     "graphql": "^14.2.1",
+    "husky": "^1.1.2",
     "jest": "^24.7.1",
+    "lint-staged": "^7.3.0",
     "prettier": "^1.16.4",
+    "standard-changelog": "^2.0.1",
     "waait": "^1.0.4"
   },
+  "husky": {
+    "hooks": {
+      "pre-commit": "lint-staged"
+    }
+  },
+  "lint-staged": {
+    "*.js": [
+      "eslint --fix",
+      "git add"
+    ]
+  },
   "homepage": "https://github.com/GraphQLGuide/apollo-datasource-mongodb",
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/GraphQLGuide/apollo-datasource-mongodb"
-  },
   "license": "MIT",
-  "bugs": {
-    "url": "https://github.com/GraphQLGuide/apollo-datasource-mongodb/issues"
+  "author": {
+    "name": "ric0",
+    "email": "e.cerroni@gmail.com",
+    "url": "https://github.com/ecerroni"
   },
-  "author": "Loren Sands-Ramshaw <loren@graphql.guide> (https://graphql.guide)",
   "keywords": [
     "apollo",
     "datasource",
     "data source",
     "mongodb",
-    "mongo"
-  ],
-  "files": [
-    "/dist"
+    "mongo",
+    "mongoose"
   ]
 }

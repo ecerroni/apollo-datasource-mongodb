@@ -295,3 +295,6 @@ Deletes a document from the cache.
 Deletes all collection's documents from the cache.
 
 //
+
+## Forked and extended from
+- [The GraphQLGuide's Apollo data source for MongoDB](https://github.com/GraphQLGuide/apollo-datasource-mongodb)

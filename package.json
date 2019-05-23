@@ -19,7 +19,7 @@
     "preversion": "npm run prettify && npm run lint && npm test && npm run build",
     "prettify": "prettier --write **/*.js",
     "version": "standard-changelog && git add CHANGELOG.md",
-    "postpublish": "git push apollo-datasource-mongodb master --follow-tags"
+    "postpublish": "git push https://github.com/ecerroni/apollo-datasource-mongodb.git master --follow-tags"
   },
   "engines": {
     "node": ">=8"

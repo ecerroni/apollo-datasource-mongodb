@@ -1,0 +1,9 @@
+{
+  "parser": "babel-eslint",
+  "extends": [
+    "airbnb-base",
+    "plugin:prettier/recommended"
+  ],
+  "plugins": [],
+  "rules": {"import/no-extraneous-dependencies": ["error", {"devDependencies": true}]}
+}

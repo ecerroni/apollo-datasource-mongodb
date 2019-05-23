@@ -17,12 +17,14 @@ class MongoDataSource extends DataSource {
 
     const cache = config.cache || new InMemoryLRUCache()
 
-    const mongoose = this.mongoose
+    const { mongoose } = this
 
-    const debug = this.debug
+    const { debug } = this
 
-    this.collections.forEach(collection => setupCaching({ collection, cache, mongoose, debug }))
+    this.collections.forEach(collection =>
+      setupCaching({ collection, cache, mongoose, debug })
+    )
   }
 }
-
+// eslint-disable-next-line import/prefer-default-export
 export { MongoDataSource }

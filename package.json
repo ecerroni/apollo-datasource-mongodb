@@ -63,7 +63,7 @@
       "git add"
     ]
   },
-  "homepage": "https://github.com/GraphQLGuide/apollo-datasource-mongodb",
+  "homepage": "https://github.com/ecerroni/apollo-datasource-mongodb",
   "license": "MIT",
   "author": {
     "name": "ric0",

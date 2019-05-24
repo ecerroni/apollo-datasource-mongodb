@@ -44,7 +44,7 @@ This package works with either one of the following npm packages:
 The basic setup is subclassing `MongoDataSource`, setting your collections in the constructor, and then using the [API methods](#API) on your collections:
 
 ```js
-import { MongoDataSource } from 'apollo-datasource-mongodb'
+import { MongoDataSource } from 'apollo-datasource-mongo'
 
 class MyMongo extends MongoDataSource {
   constructor() {
@@ -99,7 +99,7 @@ import { MongoClient } from 'mongodb'
 // OR [Using MONGOOSE]
 // import mongoose from 'mongoose';
 // import { users, posts } from './your-mongo-schema-folder'
-import { MongoDataSource } from 'apollo-datasource-mongodb'
+import { MongoDataSource } from 'apollo-datasource-mongo'
 import { ApolloServer } from 'apollo-server'
 
 let users

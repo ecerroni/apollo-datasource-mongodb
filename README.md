@@ -1,4 +1,4 @@
-[![npm version](https://badge.fury.io/js/apollo-datasource-mongo.svg)](https://www.npmjs.com/package/apollo-datasource-mongo)[![Build Status](https://img.shields.io/travis/ecerroni/apollo-datasource-mongo/master.svg?style=flat-square)](https://travis-ci.org/ecerroni/apollo-datasource-mongo) [![Coverage Status](https://img.shields.io/codecov/c/github/ecerroni/apollo-datasource-mongo/master.svg?style=flat-square)](https://codecov.io/gh/ecerroni/apollo-datasource-mongo/branch/master)
+[![npm version](https://badge.fury.io/js/apollo-datasource-mongo.svg)](https://www.npmjs.com/package/apollo-datasource-mongo)[![Build Status](https://img.shields.io/travis/ecerroni/apollo-datasource-mongodb/master.svg?style=flat-square)](https://travis-ci.org/ecerroni/apollo-datasource-mongodb) [![Coverage Status](https://img.shields.io/codecov/c/github/ecerroni/apollo-datasource-mongodb/master.svg?style=flat-square)](https://codecov.io/gh/ecerroni/apollo-datasource-mongodb/branch/master)
 
 
 Apollo [data source](https://www.apollographql.com/docs/apollo-server/features/data-sources) for MongoDB

@@ -2,7 +2,7 @@ import { InMemoryLRUCache } from 'apollo-server-caching'
 import sift from 'sift'
 import wait from 'waait'
 
-import { setupCaching } from '../cache'
+import { createCachingMethods } from '../cache'
 
 const now = new Date()
 const oneWeekAgo = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 7)
@@ -26,10 +26,11 @@ const collectionName = 'test'
 const cacheKey = id => 'mongo-' + collectionName + '-' + id
 const allCacheKeys = `mongo-${collectionName}-all-keys`
 
-describe('setupCaching', () => {
+describe('createCachingMethods', () => {
   let collection
   let cache
   let allowFlushingCollectionCache
+  let api
 
   beforeEach(() => {
     collection = {
@@ -44,7 +45,7 @@ describe('setupCaching', () => {
             } else {
               const { _id: { $in: ids } } = args
               setTimeout(() => resolve(ids.map(id => docs[id])), 0)
-            }            
+            }
           })
       }))
     }
@@ -53,24 +54,24 @@ describe('setupCaching', () => {
 
     allowFlushingCollectionCache = true
 
-    setupCaching({ collection, cache, allowFlushingCollectionCache })
+    api = createCachingMethods({ collection, cache, allowFlushingCollectionCache })
   })
 
   it('adds the right methods', () => {
-    expect(collection.findOneById).toBeDefined()
-    expect(collection.findManyByIds).toBeDefined()
-    expect(collection.deleteFromCacheById).toBeDefined()
-    expect(collection.findManyByQuery).toBeDefined()
+    expect(api.loadOneById).toBeDefined()
+    expect(api.loadManyByIds).toBeDefined()
+    expect(api.deleteFromCacheById).toBeDefined()
+    expect(api.loadManyByQuery).toBeDefined()
   })
 
   it('finds one', async () => {
-    const doc = await collection.findOneById('id1')
+    const doc = await api.loadOneById('id1')
     expect(doc).toBe(docs.id1)
     expect(collection.find.mock.calls.length).toBe(1)
   })
 
   it('finds two with batching', async () => {
-    const foundDocs = await collection.findManyByIds(['id2', 'id3'])
+    const foundDocs = await api.loadManyByIds(['id2', 'id3'])
     expect(foundDocs[0]).toBe(docs.id2)
     expect(foundDocs[1]).toBe(docs.id3)
 
@@ -78,7 +79,7 @@ describe('setupCaching', () => {
   })
 
   it('finds two with queries batching', async () => {
-    const foundDocs = await collection.findManyByQuery({
+    const foundDocs = await api.loadManyByQuery({
       createdAt: { $lte: oneWeekAgo }
     })
     expect(foundDocs[0]).toBe(docs.id2)
@@ -90,14 +91,14 @@ describe('setupCaching', () => {
 
   // TODO why doesn't this pass?
   // it.only(`doesn't cache without ttl`, async () => {
-  //   await collection.findOneById('id1')
-  //   await collection.findOneById('id1')
+  //   await api.loadOneById('id1')
+  //   await api.loadOneById('id1')
 
   //   expect(collection.find.mock.calls.length).toBe(2)
   // })
 
   it(`doesn't cache without ttl`, async () => {
-    await collection.findOneById('id1')
+    await api.loadOneById('id1')
 
     let value = await cache.get(cacheKey('id1'))
     expect(value).toBeUndefined()
@@ -106,7 +107,7 @@ describe('setupCaching', () => {
       createdAt: { $lte: oneWeekAgo }
     }
 
-    await collection.findManyByQuery(query)
+    await api.loadManyByQuery(query)
 
     value = await cache.get(cacheKey(JSON.stringify(query)))
     expect(value).toBeUndefined()
@@ -116,21 +117,21 @@ describe('setupCaching', () => {
   })
 
   it(`caches`, async () => {
-    await collection.findOneById('id1', { ttl: 1 })
+    await api.loadOneById('id1', { ttl: 1 })
     let value = await cache.get(cacheKey('id1'))
     expect(value).toBe(docs.id1)
 
-    await collection.findOneById('id1')
+    await api.loadOneById('id1')
     expect(collection.find.mock.calls.length).toBe(1)
 
     const query = {
       createdAt: { $lte: oneWeekAgo }
     }
-    await collection.findManyByQuery(query, { ttl: 1 })
+    await api.loadManyByQuery(query, { ttl: 1 })
     value = await cache.get(cacheKey(JSON.stringify(query)))
     expect(value).toEqual([docs.id2, docs.id3])
 
-    await collection.findManyByQuery(query)
+    await api.loadManyByQuery(query)
     expect(collection.find.mock.calls.length).toBe(2) // it takes count both [ [ { _id: [Object] } ], [ { '$or': [Array] } ] ]
 
     value = await cache.get(allCacheKeys)
@@ -138,7 +139,7 @@ describe('setupCaching', () => {
   })
 
   it(`caches with ttl`, async () => {
-    await collection.findOneById('id1', { ttl: 1 })
+    await api.loadOneById('id1', { ttl: 1 })
     await wait(1001)
 
     let value = await cache.get(cacheKey('id1'))
@@ -147,7 +148,7 @@ describe('setupCaching', () => {
     const query = {
       createdAt: { $lte: oneWeekAgo }
     }
-    await collection.findManyByQuery(query, { ttl: 1 })
+    await api.loadManyByQuery(query, { ttl: 1 })
     await wait(1001)
 
     value = await cache.get(cacheKey(JSON.stringify(query)))
@@ -158,26 +159,26 @@ describe('setupCaching', () => {
   })
 
   it(`deletes from cache`, async () => {
-    await collection.findOneById('id1', { ttl: 1 })
+    await api.loadOneById('id1', { ttl: 1 })
 
     let valueBefore = await cache.get(cacheKey('id1'))
     expect(valueBefore).toBe(docs.id1)
 
-    await collection.deleteFromCacheById('id1')
+    await api.deleteFromCacheById('id1')
 
     let valueAfter = await cache.get(cacheKey('id1'))
     expect(valueAfter).toBeUndefined()
-    
+
     const query = {
       createdAt: { $lte: oneWeekAgo }
     }
-    
-    await collection.findManyByQuery(query, { ttl: 1 })
+
+    await api.loadManyByQuery(query, { ttl: 1 })
 
     valueBefore = await cache.get(cacheKey(JSON.stringify(query)))
     expect(valueBefore).toEqual([docs.id2, docs.id3])
 
-    await collection.deleteFromCacheById(query)
+    await api.deleteFromCacheById(query)
 
     valueAfter = await cache.get(cacheKey(JSON.stringify(query)))
     expect(valueAfter).toBeUndefined()
@@ -186,17 +187,20 @@ describe('setupCaching', () => {
     expect(value).toEqual([])
   })
   it('has collection cache flushing disabled by default', async () => {
-    setupCaching({ collection, cache })
-    await collection.findOneById('id1', { ttl: 1 })
+    api = createCachingMethods({ collection, cache })
+    await api.loadOneById('id1', { ttl: 1 })
     let value = await cache.get(cacheKey('id1'))
     expect(value).toBe(docs.id1)
 
-        const query = {
+    const query = {
       createdAt: { $lte: oneWeekAgo }
     }
-    await collection.findManyByQuery(query, { ttl: 1 })
+    await api.loadManyByQuery(query, { ttl: 1 })
     value = await cache.get(cacheKey(JSON.stringify(query)))
     expect(value).toEqual([docs.id2, docs.id3])
+
+    const flush = await api.flushCollectionCache()
+    expect(flush).toBeNull()
 
     value = await cache.get(allCacheKeys)
     expect(value).toBeUndefined()

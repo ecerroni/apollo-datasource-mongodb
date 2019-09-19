@@ -97,7 +97,7 @@ class Users extends MongoDataSource {
 }
 ```
 
-For example, this used the default mongo client, however override that and use mongoose. You can also enable debugging and whole cache flushing:
+For example, this package uses the defauot MongoDB Driver, however you may override that using mongoose by extending the config object. You can also enable debugging and whole cache flushing:
 
 ```js
 import mongoose from 'mongoose';
@@ -109,7 +109,7 @@ class Users extends MongoDataSource {
       ...config,
       mongoose,
       debug: true,
-      flushCollectionCache = true // to allow flushing collection's cache**
+      allowFlushingCollectionCache: true // to allow flushing collection's cache**
     })
     ...
   }
@@ -181,7 +181,7 @@ class Users extends MongoDataSource {
 
   updateUserName(userId, newName) {
     this.users.deleteFromCacheById(userId)
-    // users.flushCollectionCache() // to flush the whole collection's cache. It needs flushCollectionCache to be true
+    // users.flushCollectionCache() // to flush the whole collection's cache. It needs allowFlushingCollectionCache to be true in the extended config object passed to the initialize method
     return this.users.updateOne({ 
       _id: userId 
     }, {

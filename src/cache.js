@@ -64,6 +64,7 @@ export const createCachingMethods = ({
     mongoose
       ? collection
           .find({ _id: { $in: ids } })
+          .lean()
           .then(docs => remapDocs(docs, ids))
       : collection
           .find({ _id: { $in: ids } })
@@ -84,6 +85,7 @@ export const createCachingMethods = ({
     ? ({ queries }) =>
         collection
           .find({ $or: queries })
+          .lean()
           .then(items => queries.map(query => items.filter(sift(query))))
     : ({ queries }) =>
         collection

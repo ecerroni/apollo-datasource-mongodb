@@ -38,6 +38,11 @@ This package works with either one of the following npm packages:
 - mongodb: https://www.npmjs.com/package/mongodb
 - mongoose: https://www.npmjs.com/package/mongoose
 
+## Demo
+
+- https://apollo-datasource-mongo.glitch.me/
+
+
 ## Usage
 
 ### Basic
@@ -97,17 +102,15 @@ class Users extends MongoDataSource {
 }
 ```
 
-For example, this package uses the defauot MongoDB Driver, however you may override that using mongoose by extending the config object. You can also enable debugging and whole cache flushing:
+For example, you can also enable debugging and whole cache flushing:
 
 ```js
-import mongoose from 'mongoose';
 
 class Users extends MongoDataSource {
 
   initialize(config) {
     super.initialize({
       ...config,
-      mongoose,
       debug: true,
       allowFlushingCollectionCache: true // to allow flushing collection's cache**
     })

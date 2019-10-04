@@ -24,12 +24,11 @@ class MongoDataSource extends DataSource {
     this.context = config.context
     const cache = config.cache || new InMemoryLRUCache()
 
-    const { mongoose, debug, allowFlushingCollectionCache } = config
+    const { debug, allowFlushingCollectionCache } = config
 
     const methods = createCachingMethods({
       collection: this[this.collectionName],
       cache,
-      mongoose,
       debug,
       allowFlushingCollectionCache
     })

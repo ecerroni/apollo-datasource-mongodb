@@ -57,11 +57,11 @@ export const createCachingMethods = ({
   collection,
   cache,
   allowFlushingCollectionCache = false,
-  mongoose = false,
   debug = false
 }) => {
+  const isMongoose = typeof collection === 'function'
   const loader = new DataLoader(ids =>
-    mongoose
+    isMongoose
       ? collection
           .find({ _id: { $in: ids } })
           .lean()
@@ -81,7 +81,7 @@ export const createCachingMethods = ({
   }-`
   const allCacheKeys = `${cachePrefix}all-keys`
 
-  const dataQuery = mongoose
+  const dataQuery = isMongoose
     ? ({ queries }) =>
         collection
           .find({ $or: queries })

@@ -40,7 +40,7 @@ This package works with either one of the following npm packages:
 
 ## Demo
 
-- https://apollo-datasource-mongo.glitch.me/
+- https://glitch.com/~apollo-datasource-mongo
 
 
 ## Usage

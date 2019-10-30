@@ -14,12 +14,13 @@ yarn add apollo-datasource-mongo
 ```
 
 
-This package uses [DataLoader](https://github.com/graphql/dataloader) for batching and per-request memoization caching. It also optionally (if you provide a `ttl`), does shared application-level caching (using either the default Apollo `InMemoryLRUCache` or the [cache you provide to ApolloServer()](https://www.apollographql.com/docs/apollo-server/features/data-sources#using-memcachedredis-as-a-cache-storage-backend)). It does this only for these three methods:
+This package uses [DataLoader](https://github.com/graphql/dataloader) for batching and per-request memoization caching. It also optionally (if you provide a `ttl`), does shared application-level caching (using either the default Apollo `InMemoryLRUCache` or the [cache you provide to ApolloServer()](https://www.apollographql.com/docs/apollo-server/features/data-sources#using-memcachedredis-as-a-cache-storage-backend)**). It does this only for these three methods:
 
 - [`loadOneById(id, options)`](#loadOneById)
 - [`loadManyByIds(ids, options)`](#loadManyByIds)
 - [`loadManyByQuery(queries, options)`](#loadManyByIds)
 
+** Tested with Redis only
 
 **Contents:**
 
@@ -112,12 +113,13 @@ class Users extends MongoDataSource {
     super.initialize({
       ...config,
       debug: true,
-      allowFlushingCollectionCache: true // to allow flushing collection's cache**
+      allowFlushingCollectionCache: true // to allow flushing collection's cache***
     })
     ...
   }
 }
 ```
+*** *By default flushing the collection's cache is not allowed.*
 
 ### Batching
 
@@ -167,7 +169,6 @@ const server = new ApolloServer({
   })
 })
 ```
-** *By default `flushCollectionCache` is not allowed as I implemented tracking of all cache keys without thinking about the performance implications. Actually I have no clue atm :) so I am making this optional for now.*
 
 ### Caching
 
@@ -182,9 +183,12 @@ class Users extends MongoDataSource {
     return this.users.loadOneById(userId, { ttl: MINUTE })
   }
 
-  updateUserName(userId, newName) {
-    this.users.deleteFromCacheById(userId)
-    // users.flushCollectionCache() // to flush the whole collection's cache. It needs allowFlushingCollectionCache to be true in the extended config object passed to the initialize method
+  async updateUserName(userId, newName) {
+    await this.users.deleteFromCacheById(userId)
+    
+    // await this.users.flushCollectionCache() // to flush the whole collection's cache. It needs allowFlushingCollectionCache to be true in the extended config object passed to the initialize method
+    // N.B.: Flushing the collection cache works only with Redis. It has no effect otherwise.
+    
     return this.users.updateOne({ 
       _id: userId 
     }, {

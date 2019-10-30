@@ -1,46 +1,12 @@
 import DataLoader from 'dataloader'
 import sift from 'sift'
 
-const handleCache = async ({
-  ttl,
-  doc,
-  key,
-  cache,
-  allCacheKeys,
-  debug,
-  allowFlushingCollectionCache
-}) => {
+const handleCache = async ({ ttl, doc, key, cache, isRedis = false }) => {
   if (Number.isInteger(ttl)) {
     // https://github.com/apollographql/apollo-server/tree/master/packages/apollo-server-caching#apollo-server-caching
-    cache.set(key, doc, {
+    cache.set(key, isRedis ? JSON.stringify(doc) : doc, {
       ttl
     })
-    if (allowFlushingCollectionCache) {
-      const allKeys = (await cache.get(allCacheKeys)) || []
-
-      if (!allKeys.find(k => k === key)) {
-        allKeys.push(key)
-        const newKeys = [...new Set(allKeys)]
-        cache.set(allCacheKeys, newKeys, { ttl })
-        if (debug) {
-          console.log(
-            'All Keys Cache: Added => ',
-            key,
-            '#keys',
-            (await cache.get(allCacheKeys)) &&
-              (await cache.get(allCacheKeys)).length
-          )
-        }
-      } else if (debug) {
-        console.log(
-          'All Keys Cache: Found => ',
-          key,
-          '#keys',
-          (await cache.get(allCacheKeys)) &&
-            (await cache.get(allCacheKeys)).length
-        )
-      }
-    }
   }
 }
 
@@ -59,6 +25,7 @@ export const createCachingMethods = ({
   allowFlushingCollectionCache = false,
   debug = false
 }) => {
+  const isRedis = typeof cache.store === 'undefined'
   const isMongoose = typeof collection === 'function'
   const loader = new DataLoader(ids =>
     isMongoose
@@ -72,14 +39,13 @@ export const createCachingMethods = ({
           .then(docs => remapDocs(docs, ids))
   )
 
-  const cachePrefix = `mongo-${
+  const cachePrefix = `db:mongo:${
     collection.collectionName // eslint-disable-line no-nested-ternary
       ? collection.collectionName
       : collection.modelName
       ? collection.modelName
       : 'test'
-  }-`
-  const allCacheKeys = `${cachePrefix}all-keys`
+  }:`
 
   const dataQuery = isMongoose
     ? ({ queries }) =>
@@ -105,7 +71,7 @@ export const createCachingMethods = ({
         console.log('KEY', key, cacheDoc ? 'cache' : 'miss')
       }
       if (cacheDoc) {
-        return cacheDoc
+        return isRedis ? JSON.parse(cacheDoc) : cacheDoc
       }
 
       const doc = await loader.load(id)
@@ -114,9 +80,7 @@ export const createCachingMethods = ({
         doc,
         key,
         cache,
-        allCacheKeys,
-        debug,
-        allowFlushingCollectionCache
+        isRedis
       })
 
       return doc
@@ -135,7 +99,7 @@ export const createCachingMethods = ({
         console.log('KEY', key, cacheDocs ? 'cache' : 'miss')
       }
       if (cacheDocs) {
-        return cacheDocs
+        return isRedis ? JSON.parse(cacheDocs) : cacheDocs
       }
       const docs = await queryLoader.load(query)
       await handleCache({
@@ -143,32 +107,46 @@ export const createCachingMethods = ({
         doc: docs,
         key,
         cache,
-        allCacheKeys,
-        debug,
-        allowFlushingCollectionCache
+        isRedis
       })
       return docs
     },
 
     // eslint-disable-next-line no-param-reassign
     deleteFromCacheById: async id => {
-      const key = id && typeof id === 'object' ? JSON.stringify(id) : id
-      const allKeys = (await cache.get(allCacheKeys)) || []
-      const newKeys = allKeys.filter(k => k !== `${cachePrefix}${key}`)
+      const key = id && typeof id === 'object' ? JSON.stringify(id) : id // NEW
       await cache.delete(cachePrefix + key)
-      if (allowFlushingCollectionCache) cache.set(allCacheKeys, newKeys)
     }, // this works also for byQueries just passing a stringified query as the id
 
     // eslint-disable-next-line no-param-reassign
     flushCollectionCache: async () => {
       if (!allowFlushingCollectionCache) return null
-      const allKeys = (await cache.get(allCacheKeys)) || []
-      // eslint-disable-next-line no-restricted-syntax
-      for (const key of allKeys) {
-        cache.delete(key)
+      if (isRedis) {
+        const redis = cache.client
+        const stream = redis.scanStream({
+          match: `${cachePrefix}*`
+        })
+        stream.on('data', keys => {
+          // `keys` is an array of strings representing key names
+          if (keys.length) {
+            const pipeline = redis.pipeline()
+            keys.forEach(key => {
+              pipeline.del(key)
+              if (debug) {
+                console.log('KEY', key, 'flushed')
+              }
+            })
+            pipeline.exec()
+          }
+        })
+        stream.on('end', () => {
+          if (debug) {
+            console.log(`Flushed ${cachePrefix}*`)
+          }
+        })
+        return 'ok'
       }
-      cache.set(allCacheKeys, [])
-      return true
+      return null
     }
   }
   return methods

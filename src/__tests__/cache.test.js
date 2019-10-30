@@ -23,8 +23,7 @@ const docs = {
 }
 
 const collectionName = 'test'
-const cacheKey = id => 'mongo-' + collectionName + '-' + id
-const allCacheKeys = `mongo-${collectionName}-all-keys`
+const cacheKey = id => 'db:mongo:' + collectionName + ':' + id
 
 describe('createCachingMethods', () => {
   let collection
@@ -89,14 +88,6 @@ describe('createCachingMethods', () => {
     expect(collection.find.mock.calls.length).toBe(1)
   })
 
-  // TODO why doesn't this pass?
-  // it.only(`doesn't cache without ttl`, async () => {
-  //   await api.loadOneById('id1')
-  //   await api.loadOneById('id1')
-
-  //   expect(collection.find.mock.calls.length).toBe(2)
-  // })
-
   it(`doesn't cache without ttl`, async () => {
     await api.loadOneById('id1')
 
@@ -110,9 +101,6 @@ describe('createCachingMethods', () => {
     await api.loadManyByQuery(query)
 
     value = await cache.get(cacheKey(JSON.stringify(query)))
-    expect(value).toBeUndefined()
-
-    value = await cache.get(allCacheKeys)
     expect(value).toBeUndefined()
   })
 
@@ -133,9 +121,6 @@ describe('createCachingMethods', () => {
 
     await api.loadManyByQuery(query)
     expect(collection.find.mock.calls.length).toBe(2) // it takes count both [ [ { _id: [Object] } ], [ { '$or': [Array] } ] ]
-
-    value = await cache.get(allCacheKeys)
-    expect(value).toEqual([cacheKey('id1'), cacheKey(JSON.stringify(query))])
   })
 
   it(`caches with ttl`, async () => {
@@ -152,9 +137,6 @@ describe('createCachingMethods', () => {
     await wait(1001)
 
     value = await cache.get(cacheKey(JSON.stringify(query)))
-    expect(value).toBeUndefined()
-
-    value = await cache.get(allCacheKeys)
     expect(value).toBeUndefined()
   })
 
@@ -182,9 +164,6 @@ describe('createCachingMethods', () => {
 
     valueAfter = await cache.get(cacheKey(JSON.stringify(query)))
     expect(valueAfter).toBeUndefined()
-
-    const value = await cache.get(allCacheKeys)
-    expect(value).toEqual([])
   })
   it('has collection cache flushing disabled by default', async () => {
     api = createCachingMethods({ collection, cache })
@@ -201,9 +180,6 @@ describe('createCachingMethods', () => {
 
     const flush = await api.flushCollectionCache()
     expect(flush).toBeNull()
-
-    value = await cache.get(allCacheKeys)
-    expect(value).toBeUndefined()
 
   })
 })

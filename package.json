@@ -1,6 +1,6 @@
 {
   "name": "apollo-datasource-mongo",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "description": "Apollo data source for MongoDB Client and Mongoose",
   "main": "dist/index.js",
   "files": [

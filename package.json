@@ -25,11 +25,11 @@
     "node": ">=8"
   },
   "dependencies": {
-    "apollo-datasource": "^0.3.1",
-    "apollo-server-caching": "^0.3.1",
-    "apollo-server-errors": "^2.2.1",
-    "dataloader": "^1.4.0",
-    "sift": "^8.3.3"
+    "apollo-datasource": "^0.7.2",
+    "apollo-server-caching": "^0.5.2",
+    "apollo-server-errors": "^2.4.2",
+    "dataloader": "^2.0.0",
+    "sift": "^13.5.0"
   },
   "devDependencies": {
     "@babel/cli": "^7.4.3",

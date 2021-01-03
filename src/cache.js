@@ -1,5 +1,6 @@
 import DataLoader from 'dataloader'
 import sift from 'sift'
+import { ObjectId } from 'mongodb'
 
 function to(promise, errorExt) {
   return promise
@@ -12,6 +13,11 @@ function to(promise, errorExt) {
       return [err, undefined]
     })
 }
+
+export const idToString = id => (id instanceof ObjectId ? id.toHexString() : id)
+
+const stringToId = str => (str instanceof ObjectId ? str : new ObjectId(str))
+
 const handleCache = async ({ ttl, doc, key, cache, isRedis = false }) => {
   if (Number.isInteger(ttl)) {
     // https://github.com/apollographql/apollo-server/tree/master/packages/apollo-server-caching#apollo-server-caching
@@ -24,9 +30,9 @@ const handleCache = async ({ ttl, doc, key, cache, isRedis = false }) => {
 const remapDocs = (docs, ids) => {
   const idMap = {}
   docs.forEach(doc => {
-    idMap[doc._id] = doc // eslint-disable-line no-underscore-dangle
+    idMap[idToString(doc._id)] = doc // eslint-disable-line no-underscore-dangle
   })
-  return ids.map(id => idMap[id])
+  return ids.map(id => idMap[idToString(id)])
 }
 
 // eslint-disable-next-line import/prefer-default-export
@@ -41,11 +47,11 @@ export const createCachingMethods = ({
   const loader = new DataLoader(ids =>
     isMongoose
       ? collection
-          .find({ _id: { $in: ids } })
+          .find({ _id: { $in: ids.map(stringToId) } })
           .lean()
           .then(docs => remapDocs(docs, ids))
       : collection
-          .find({ _id: { $in: ids } })
+          .find({ _id: { $in: ids.map(stringToId) } })
           .toArray()
           .then(docs => remapDocs(docs, ids))
   )
@@ -77,6 +83,7 @@ export const createCachingMethods = ({
     loadOneById: async (id, { ttl } = {}) => {
       const key = cachePrefix + id
 
+      // eslint-disable-next-line no-unused-vars
       const [_, cacheDoc] = await to(cache.get(key))
       if (debug) {
         console.log('KEY', key, cacheDoc ? 'cache' : 'miss')
@@ -85,7 +92,7 @@ export const createCachingMethods = ({
         return isRedis ? JSON.parse(cacheDoc) : cacheDoc
       }
 
-      const doc = await loader.load(id)
+      const doc = await loader.load(idToString(id))
       await handleCache({
         ttl,
         doc,
@@ -125,6 +132,9 @@ export const createCachingMethods = ({
 
     // eslint-disable-next-line no-param-reassign
     deleteFromCacheById: async id => {
+      const stringId = idToString(id)
+      loader.clear(stringId)
+      // await cache.delete(cachePrefix + stringId)
       const key = id && typeof id === 'object' ? JSON.stringify(id) : id // NEW
       await cache.delete(cachePrefix + key)
     }, // this works also for byQueries just passing a stringified query as the id

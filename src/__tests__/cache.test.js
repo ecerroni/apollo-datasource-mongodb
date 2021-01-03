@@ -1,4 +1,5 @@
 import { InMemoryLRUCache } from 'apollo-server-caching'
+import { ObjectId } from 'mongodb'
 import sift from 'sift'
 import wait from 'waait'
 
@@ -9,15 +10,15 @@ const oneWeekAgo = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 7
 
 const docs = {
   id1: {
-    _id: 'id1',
+    _id: 'aaaa0000bbbb0000cccc0000',
     createdAt: now
   },
   id2: {
-    _id: 'id2',
+    _id: ObjectId(),
     createdAt: oneWeekAgo
   },
   id3: {
-    _id: 'id3',
+    _id: ObjectId(),
     createdAt: oneWeekAgo
   }
 }
@@ -43,7 +44,10 @@ describe('createCachingMethods', () => {
               setTimeout(() => resolve(queries.reduce((arr, query) => [...arr, ...siftDocs.filter(sift(query))], [])), 0)
             } else {
               const { _id: { $in: ids } } = args
-              setTimeout(() => resolve(ids.map(id => docs[id])), 0)
+              setTimeout(() => resolve(ids.map((id) => {
+                return Object.values(docs).find(doc => doc._id.toString() === id.toString())
+              })
+            ), 0)
             }
           })
       }))
@@ -64,13 +68,13 @@ describe('createCachingMethods', () => {
   })
 
   it('finds one', async () => {
-    const doc = await api.loadOneById('id1')
+    const doc = await api.loadOneById(docs.id1._id)
     expect(doc).toBe(docs.id1)
     expect(collection.find.mock.calls.length).toBe(1)
   })
 
   it('finds two with batching', async () => {
-    const foundDocs = await api.loadManyByIds(['id2', 'id3'])
+    const foundDocs = await api.loadManyByIds([docs.id2._id, docs.id3._id])
     expect(foundDocs[0]).toBe(docs.id2)
     expect(foundDocs[1]).toBe(docs.id3)
 
@@ -89,9 +93,9 @@ describe('createCachingMethods', () => {
   })
 
   it(`doesn't cache without ttl`, async () => {
-    await api.loadOneById('id1')
+    await api.loadOneById(docs.id1._id)
 
-    let value = await cache.get(cacheKey('id1'))
+    let value = await cache.get(cacheKey(docs.id1._id))
     expect(value).toBeUndefined()
 
     const query = {
@@ -105,11 +109,11 @@ describe('createCachingMethods', () => {
   })
 
   it(`caches`, async () => {
-    await api.loadOneById('id1', { ttl: 1 })
-    let value = await cache.get(cacheKey('id1'))
+    await api.loadOneById(docs.id1._id, { ttl: 1 })
+    let value = await cache.get(cacheKey(docs.id1._id))
     expect(value).toBe(docs.id1)
 
-    await api.loadOneById('id1')
+    await api.loadOneById(docs.id1._id)
     expect(collection.find.mock.calls.length).toBe(1)
 
     const query = {
@@ -124,10 +128,10 @@ describe('createCachingMethods', () => {
   })
 
   it(`caches with ttl`, async () => {
-    await api.loadOneById('id1', { ttl: 1 })
+    await api.loadOneById(docs.id1._id, { ttl: 1 })
     await wait(1001)
 
-    let value = await cache.get(cacheKey('id1'))
+    let value = await cache.get(cacheKey(docs.id1._id))
     expect(value).toBeUndefined()
 
     const query = {
@@ -141,14 +145,14 @@ describe('createCachingMethods', () => {
   })
 
   it(`deletes from cache`, async () => {
-    await api.loadOneById('id1', { ttl: 1 })
+    await api.loadOneById(docs.id1._id, { ttl: 1 })
 
-    let valueBefore = await cache.get(cacheKey('id1'))
+    let valueBefore = await cache.get(cacheKey(docs.id1._id))
     expect(valueBefore).toBe(docs.id1)
 
-    await api.deleteFromCacheById('id1')
+    await api.deleteFromCacheById(docs.id1._id)
 
-    let valueAfter = await cache.get(cacheKey('id1'))
+    let valueAfter = await cache.get(cacheKey(docs.id1._id))
     expect(valueAfter).toBeUndefined()
 
     const query = {
@@ -167,8 +171,8 @@ describe('createCachingMethods', () => {
   })
   it('has collection cache flushing disabled by default', async () => {
     api = createCachingMethods({ collection, cache })
-    await api.loadOneById('id1', { ttl: 1 })
-    let value = await cache.get(cacheKey('id1'))
+    await api.loadOneById(docs.id1._id, { ttl: 1 })
+    let value = await cache.get(cacheKey(docs.id1._id))
     expect(value).toBe(docs.id1)
 
     const query = {
@@ -181,5 +185,19 @@ describe('createCachingMethods', () => {
     const flush = await api.flushCollectionCache()
     expect(flush).toBeNull()
 
+  })
+  it('deletes from DataLoader cache', async () => {
+    for (const id of [docs.id1._id, docs.id2._id]) {
+      await api.loadOneById(id)
+      expect(collection.find).toHaveBeenCalled()
+      collection.find.mockClear()
+
+      await api.loadOneById(id)
+      expect(collection.find).not.toHaveBeenCalled()
+
+      await api.deleteFromCacheById(id)
+      await api.loadOneById(id)
+      expect(collection.find).toHaveBeenCalled()
+    }
   })
 })

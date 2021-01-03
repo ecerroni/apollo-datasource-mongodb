@@ -1,6 +1,17 @@
 import DataLoader from 'dataloader'
 import sift from 'sift'
 
+function to(promise, errorExt) {
+  return promise
+    .then(data => [null, data])
+    .catch(err => {
+      if (errorExt) {
+        Object.assign(err, errorExt)
+      }
+
+      return [err, undefined]
+    })
+}
 const handleCache = async ({ ttl, doc, key, cache, isRedis = false }) => {
   if (Number.isInteger(ttl)) {
     // https://github.com/apollographql/apollo-server/tree/master/packages/apollo-server-caching#apollo-server-caching
@@ -66,7 +77,7 @@ export const createCachingMethods = ({
     loadOneById: async (id, { ttl } = {}) => {
       const key = cachePrefix + id
 
-      const cacheDoc = await cache.get(key)
+      const [_, cacheDoc] = await to(cache.get(key))
       if (debug) {
         console.log('KEY', key, cacheDoc ? 'cache' : 'miss')
       }

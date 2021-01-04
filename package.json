@@ -1,6 +1,6 @@
 {
   "name": "apollo-datasource-mongo",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "Apollo data source for MongoDB Client and Mongoose",
   "main": "dist/index.js",
   "files": [
@@ -54,9 +54,7 @@
     "waait": "^1.0.4"
   },
   "husky": {
-    "hooks": {
-      "pre-commit": "lint-staged"
-    }
+    "hooks": {}
   },
   "lint-staged": {
     "*.js": [

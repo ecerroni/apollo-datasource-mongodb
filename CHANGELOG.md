@@ -1,3 +1,7 @@
+## [0.1.7](https://github.com/ecerroni/apollo-datasource-mongodb/compare/v0.1.6...v0.1.7) (2021-01-27)
+
+
+
 ## [0.1.6](https://github.com/ecerroni/apollo-datasource-mongodb/compare/v0.1.5...v0.1.6) (2021-01-27)
 
 
